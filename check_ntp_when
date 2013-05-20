@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+# Check how recently a host was in contact with its peers
+#
+
+# Example why:
+#
+# root@monitor02.eqx ~ # ntpq -p esxi06
+#     remote           refid      st t when poll reach   delay   offset  jitter
+#     ==============================================================================
+#     *cns01.eqx.reale 10.69.0.200      4 u 189d 1024  377    0.174   -0.140   0.100
+#
+# NOTE that some hosts can go up to 1024 seconds per poll when
+# they get really confident about their local ticker.
+#
+# By default, we look at the REACH of the host in question and set WARN to
+# be $REACH + 64, and CRIT to be REACH + 256
+#
+
+while getopts "H:w:c:n" opt; do
+	case $opt in 
+		H)	HOST=$OPTARG ;;
+		w)	WARN=$OPTARG ;;
+		c)	CRIT=$OPTARG ;;
+		n)	NUMERIC="-n " ;;
+		\?)	echo "Invalid option $OPTARG" ; exit 1 ;;
+		:)	echo "Option -$OPTARG requires an argument" ; exit 1 ;;
+		*)	echo "Unknown argument" ; exit 1 ;;
+	esac
+done
+
+if [ -z "$HOST" ]; then
+	echo "ERROR: Missing -H <HOST> argument"
+	exit 3
+fi
+
+critical=false
+warning=false
+TMPFILE=$( mktemp )
+/usr/sbin/ntpq $NUMERIC -p \
+    | awk '/^====/,EOF { getline; f=1 } { if (f) { print $1, $5, $6 } }' \
+    | while read peer when poll; do
+	case $when in 
+		*d)	SEC=$(( $( echo $when | sed -e 's/d$//' ) * 86400 )) ;;
+		[0-9]*)	SEC=$when ;;
+		*)	echo "UNKNOWN: Do not understand when of $when" ; exit 3 ;;
+
+	esac
+    	if [[ $SEC -gt $(( $poll + 256 )) ]]; then
+		echo "CRITICAL: WHEN of $SEC GREATER THAN $(( $poll + 256 )) FOR PEER $peer"
+    	elif [[ $SEC -gt $(( $poll + 64 )) ]]; then
+		echo "WARNING: WHEN of $SEC GREATER THAN $(( $poll + 64 )) FOR PEER $peer"
+	fi
+done | tee $TMPFILE
+
+if grep -q CRITICAL $TMPFILE; then
+	exit 2
+elif grep -q WARNING $TMPFILE; then
+	exit 1
+else
+	echo "OK: NTP has polled recently enough"
+fi
