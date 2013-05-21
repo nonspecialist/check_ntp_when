@@ -68,7 +68,7 @@ have.
 
 # BUGS
 
-Please report bugs via https://github.com/nonspecialist/check\_ntp\_when
+Please report bugs via https://github.com/nonspecialist/check_ntp_when
 
 # COPYRIGHT
 
