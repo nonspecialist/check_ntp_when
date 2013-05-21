@@ -20,27 +20,52 @@
 NTPQ=$( type -fP ntpq )
 TMPFILE=$( mktemp )
 ERRFILE=$( mktemp )
+PROG=$( basename $0 )
+
+# Defaults
+WARN=64
+CRIT=256
+DEBUG=false
 
 cleanup () {
-    rm -f $TMPFILE $ERRFILE
+    $DEBUG && cat $DEBUGFILE
+    rm -f $TMPFILE $ERRFILE $DEBUGFILE
 }
 
 trap cleanup EXIT
 
-WARN=64
-CRIT=256
+usage () {
+    cat <<EoUsage
+Usage: $PROG -H <host> [-w warn] [-c crit] [-n] [-d]"
+    -H <host>       Host to check
+    -w warn         seconds of lag behind poll to accept before WARNING
+    -c crit         seconds of lag behind poll to accept before CRITICAL
+    -n              do not reverse lookup IP addresses via DNS
+    -d              debug
+EoUsage
+}
 
-while getopts "H:w:c:n" opt; do
+dbg () {
+    $DEBUG && echo "DEBUG: $1" >> $DEBUGFILE
+}
+
+while getopts "H:w:c:ndh" opt; do
 	case $opt in 
 		H)	HOST=$OPTARG ;;
 		w)	WARN=$OPTARG ;;
 		c)	CRIT=$OPTARG ;;
 		n)	NUMERIC="-n " ;;
+        d)  DEBUG=true ;;
+        h)  usage ;;
 		\?)	echo "Invalid option $OPTARG" ; exit 1 ;;
 		:)	echo "Option -$OPTARG requires an argument" ; exit 1 ;;
 		*)	echo "Unknown argument" ; exit 1 ;;
 	esac
 done
+
+if $DEBUG; then
+    DEBUGFILE=$( mktemp )
+fi
 
 if [ -z "$HOST" ]; then
 	echo "ERROR: Missing -H <HOST> argument"
@@ -54,18 +79,54 @@ warning=false
 $NTPQ $NUMERIC -p $HOST 2>$ERRFILE \
     | awk '/^====/,EOF { getline; f=1 } { if (f) { print $1, $5, $6 } }' \
     | while read peer when poll; do
-	case $when in 
-		*d)	SEC=$(( $( echo $when | sed -e 's/d$//' ) * 86400 )) ;;
-		[0-9]*)	SEC=$when ;;
-		*)	echo "UNKNOWN: Do not understand when of $when" ; exit 3 ;;
+    PEER_STATUS=$( echo $peer | cut -c1 )
+    case $PEER_STATUS in
+        x)  # peer is discarded by intersection
+            dbg "Discarded $peer due to intersection"
+            continue ;;
+        .)  # peer discarded by table overflow (unused apparently)
+            dbg "Discarded $peer due to table overflow"
+            continue ;;
+        -)  # peer discarded by cluster algorithm
+            dbg "Discarded $peer by cluster algorithm"
+            continue ;;
+        +)  # peer included by the combine algorithm
+            dbg "Including $peer by combine algorithm"
+            peer=$( echo $peer | cut -c2- ) ;;
+        \#) # peer is a backup (more than maxclock sources)
+            dbg "Including $peer as a backup"
+            continue ;;
+        \*) # peer is the chosen system peer
+            dbg "Including $peer as chosen system peer"
+            peer=$( echo $peer | cut -c2- ) ;;
+        o)  # PPS peer
+            dbg "Including $peer as PPS peer"
+            peer=$( echo $peer | cut -c2- ) ;;
+        *)  # unknown
+            dbg "Don't know what to do with $peer"
+            continue ;;
+    esac
 
+	case $when in
+		*d)	dbg "Matched when of days to $when for peer $peer"
+            SEC=$(( $( echo $when | sed -e 's/d$//' ) * 86400 ))
+            ;;
+		[0-9]*)
+            dbg "Matched when of seconds to $when for peer $peer"
+            SEC=$when
+            ;;
+		*)	dbg "Unknown when of $when for peer $peer"
+            echo "UNKNOWN: Do not understand when of $when"
+            exit 3
+            ;;
 	esac
+
     if [[ $SEC -gt $(( $poll + $CRIT )) ]]; then
-		echo "CRITICAL: WHEN of $SEC GREATER THAN $(( $poll + $CRIT )) FOR PEER $peer"
+		echo "CRITICAL: when of $SEC seconds > $(( $poll + $CRIT )) seconds for peer $peer"
     elif [[ $SEC -gt $(( $poll + $WARN )) ]]; then
-		echo "WARNING: WHEN of $SEC GREATER THAN $(( $poll + $WARN )) FOR PEER $peer"
+		echo "WARNING: when of $SEC seconds > $(( $poll + $WARN )) for peer $peer"
     else
-        echo "OK: NTP has polled $peer recently enough"
+        echo "OK: NTP has polled $peer recently enough ($SEC seconds)"
 	fi
 done > $TMPFILE
 
@@ -76,6 +137,9 @@ elif grep WARNING: $TMPFILE; then
 elif grep -q OK: $TMPFILE; then
 	echo "OK: NTP has polled recently enough"
     exit 0
+elif [ $( wc -l $TMPFILE ) -eq 0 ]; then
+    echo "UNKNOWN: Host has no valid peers"
+    exit 3
 else
     echo "UNKNOWN: Problems polling $HOST: $( echo $( cat $ERRFILE ) )"
     exit 3
