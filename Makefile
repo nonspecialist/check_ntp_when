@@ -12,7 +12,8 @@ MOCK_ROOT=$(shell type -p mock >/dev/null && /usr/bin/mock -r $(MOCK_CONFIG) --p
 MOCK_RESULT=$(shell /usr/bin/readlink -f $(MOCK_ROOT)/../result)
 
 NVR=$(NAME)-$(VERSION)-$(RELEASE)
-MOCK_SRPM=$(NVR).src.rpm
+MOCK_SRPM=$(NVR).el6.src.rpm
+RPM=$(NVR).el6.noarch.rpm
 
 .DEFAULT: all
 
@@ -29,14 +30,13 @@ rpm:
 
 mock-srpm:
 	mock -r $(MOCK_CONFIG) --init
-	mock -r $(MOCK_CONFIG) --buildsrpm --spec $(SPEC) --sources .
+	mock -r $(MOCK_CONFIG) --buildsrpm --spec $(SPEC) --sources . --resultdir .
 
 mock-rpm: mock-srpm
-	cp $(MOCK_RESULT)/$(MOCK_SRPM) .
-	mock -r $(MOCK_CONFIG) --rebuild $(MOCK_SRPM)
+	mock -r $(MOCK_CONFIG) --rebuild $(MOCK_SRPM) --resultdir .
 
 clean: mock-clean
 
 mock-clean:
 	mock -r $(MOCK_CONFIG) --clean
-	rm -f $(MOCK_SRPM)
+	rm -f $(MOCK_SRPM) $(RPM) available_pkgs installed_pkgs *.log
