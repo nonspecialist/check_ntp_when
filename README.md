@@ -1,4 +1,4 @@
-% check\_ntp\_when(1)
+% check\_ntp\_when(1) | Version 0.1
 % Colin Panisset
 % May 21, 2013
 
