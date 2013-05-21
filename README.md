@@ -31,7 +31,7 @@ with its NTP servers.
 > had NTP configured to permit queries from the monitoring host, otherwise
 > the query will time out (and fail)
 
-**-w warning range** 
+**-w warning_range** 
 
 > define the permissible lag in seconds between the
 > poll frequency and the last time that the NTP client contacted its server
@@ -40,7 +40,7 @@ with its NTP servers.
 > seconds, then `check_ntp_when` would enter WARNING state once the
 > client hadn't contacted the host for 320 seconds.
 
-**-c critical range** 
+**-c critical_range** 
 
 > define the permissible lag in seconds between the
 > poll frequency and the last time that the NTP client contacted it
