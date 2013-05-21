@@ -25,7 +25,10 @@ cleanup () {
     rm -f $TMPFILE $ERRFILE
 }
 
-# trap cleanup EXIT
+trap cleanup EXIT
+
+WARN=64
+CRIT=256
 
 while getopts "H:w:c:n" opt; do
 	case $opt in 
@@ -57,10 +60,10 @@ $NTPQ $NUMERIC -p $HOST 2>$ERRFILE \
 		*)	echo "UNKNOWN: Do not understand when of $when" ; exit 3 ;;
 
 	esac
-    if [[ $SEC -gt $(( $poll + 256 )) ]]; then
-		echo "CRITICAL: WHEN of $SEC GREATER THAN $(( $poll + 256 )) FOR PEER $peer"
-    elif [[ $SEC -gt $(( $poll + 64 )) ]]; then
-		echo "WARNING: WHEN of $SEC GREATER THAN $(( $poll + 64 )) FOR PEER $peer"
+    if [[ $SEC -gt $(( $poll + $CRIT )) ]]; then
+		echo "CRITICAL: WHEN of $SEC GREATER THAN $(( $poll + $CRIT )) FOR PEER $peer"
+    elif [[ $SEC -gt $(( $poll + $WARN )) ]]; then
+		echo "WARNING: WHEN of $SEC GREATER THAN $(( $poll + $WARN )) FOR PEER $peer"
     else
         echo "OK: NTP has polled $peer recently enough"
 	fi
