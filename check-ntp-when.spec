@@ -27,15 +27,15 @@ check_ntp_when queries a remote NTP client and checks the recentness
 /bin/true
 
 %build
-pandoc -s -w man %{SOURCE1} -o %{name}.1
+pandoc -s -w man %{SOURCE1} -o check_ntp_when.1
 
 %install
 mkdir -p ${RPM_BUILD_ROOT}/%{_bindir} ${RPM_BUILD_ROOT}/%{_mandir}/man1 
-cp %{name}.1 ${RPM_BUILD_ROOT}/%{_mandir}/man1
+cp check_ntp_when.1 ${RPM_BUILD_ROOT}/%{_mandir}/man1
 cp %{SOURCE0} ${RPM_BUILD_ROOT}/%{_bindir}
 
 %files
-%attr(0644,root,root) %doc %{_mandir}/man1/%{name}.1.gz
+%attr(0644,root,root) %doc %{_mandir}/man1/check_ntp_when.1.gz
 %attr(0755,root,root) %{_bindir}/check_ntp_when
 
 %changelog
