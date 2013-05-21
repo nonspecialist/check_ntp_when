@@ -17,6 +17,16 @@
 # be $REACH + 64, and CRIT to be REACH + 256
 #
 
+NTPQ=$( type -fP ntpq )
+TMPFILE=$( mktemp )
+ERRFILE=$( mktemp )
+
+cleanup () {
+    rm -f $TMPFILE $ERRFILE
+}
+
+# trap cleanup EXIT
+
 while getopts "H:w:c:n" opt; do
 	case $opt in 
 		H)	HOST=$OPTARG ;;
@@ -36,8 +46,9 @@ fi
 
 critical=false
 warning=false
-TMPFILE=$( mktemp )
-/usr/sbin/ntpq $NUMERIC -p \
+
+# check the host 
+$NTPQ $NUMERIC -p $HOST 2>$ERRFILE \
     | awk '/^====/,EOF { getline; f=1 } { if (f) { print $1, $5, $6 } }' \
     | while read peer when poll; do
 	case $when in 
@@ -46,17 +57,25 @@ TMPFILE=$( mktemp )
 		*)	echo "UNKNOWN: Do not understand when of $when" ; exit 3 ;;
 
 	esac
-    	if [[ $SEC -gt $(( $poll + 256 )) ]]; then
+    if [[ $SEC -gt $(( $poll + 256 )) ]]; then
 		echo "CRITICAL: WHEN of $SEC GREATER THAN $(( $poll + 256 )) FOR PEER $peer"
-    	elif [[ $SEC -gt $(( $poll + 64 )) ]]; then
+    elif [[ $SEC -gt $(( $poll + 64 )) ]]; then
 		echo "WARNING: WHEN of $SEC GREATER THAN $(( $poll + 64 )) FOR PEER $peer"
+    else
+        echo "OK: NTP has polled $peer recently enough"
 	fi
-done | tee $TMPFILE
+done > $TMPFILE
 
-if grep -q CRITICAL $TMPFILE; then
+if grep CRITICAL: $TMPFILE; then
 	exit 2
-elif grep -q WARNING $TMPFILE; then
+elif grep WARNING: $TMPFILE; then
 	exit 1
-else
+elif grep -q OK: $TMPFILE; then
 	echo "OK: NTP has polled recently enough"
+    exit 0
+else
+    echo "UNKNOWN: Problems polling $HOST: $( echo $( cat $ERRFILE ) )"
+    exit 3
 fi
+
+# :vim:ts=4 sw=4 expandtab ai
