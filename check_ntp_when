@@ -26,6 +26,7 @@ PROG=$( basename $0 )
 WARN=64
 CRIT=256
 DEBUG=false
+NOPEER_IS_CRIT=false
 
 cleanup () {
     $DEBUG && cat $DEBUGFILE
@@ -42,20 +43,24 @@ Usage: $PROG -H <host> [-w warn] [-c crit] [-n] [-d]"
     -c crit         seconds of lag behind poll to accept before CRITICAL
     -n              do not reverse lookup IP addresses via DNS
     -d              debug
+    -x              No valid peers available is CRITICAL
+    -h              this message
 EoUsage
+    exit 0
 }
 
 dbg () {
     $DEBUG && echo "DEBUG: $1" >> $DEBUGFILE
 }
 
-while getopts "H:w:c:ndh" opt; do
+while getopts "H:w:c:ndhx" opt; do
 	case $opt in 
 		H)	HOST=$OPTARG ;;
 		w)	WARN=$OPTARG ;;
 		c)	CRIT=$OPTARG ;;
 		n)	NUMERIC="-n " ;;
         d)  DEBUG=true ;;
+        x)  NOPEER_IS_CRIT=true ;;
         h)  usage ;;
 		\?)	echo "Invalid option $OPTARG" ; exit 1 ;;
 		:)	echo "Option -$OPTARG requires an argument" ; exit 1 ;;
@@ -137,9 +142,14 @@ elif grep WARNING: $TMPFILE; then
 elif grep -q OK: $TMPFILE; then
 	echo "OK: NTP has polled recently enough"
     exit 0
-elif [ $( wc -l $TMPFILE ) -eq 0 ]; then
-    echo "UNKNOWN: Host has no valid peers"
-    exit 3
+elif [ $( wc -l $TMPFILE | awk '{ print $1 }' ) -eq 0 ]; then
+    if $NOPEER_IS_CRIT; then
+        echo "CRITICAL: Host has no valid peers"
+        exit 2
+    else
+        echo "UNKNOWN: Host has no valid peers"
+        exit 3
+    fi
 else
     echo "UNKNOWN: Problems polling $HOST: $( echo $( cat $ERRFILE ) )"
     exit 3
