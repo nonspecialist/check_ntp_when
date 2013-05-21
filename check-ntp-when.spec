@@ -15,6 +15,7 @@ Source0:	check_ntp_when
 Source1:	README.md
 
 BuildRequires:	pandoc
+BuildArch:	noarch
 
 %description
 check_ntp_when queries a remote NTP client and checks the recentness 
@@ -22,19 +23,19 @@ check_ntp_when queries a remote NTP client and checks the recentness
 "forget" to poll, and drift out of sync.
 
 %prep
-%setup -q
-
+/bin/true
 
 %build
-pandoc -s -w man README.md -o %{name}.1
+pandoc -s -w man %{SOURCE1} -o %{name}.1
 
 %install
-mkdir -p %{_bindir} && cp %{SOURCE0} %{_bindir}
-mkdir -p %{_mandir}/man1 && cp %{name}.1 %{_mandir}/man1
+mkdir -p ${RPM_BUILD_ROOT}/%{_bindir} ${RPM_BUILD_ROOT}/%{_mandir}/man1 
+cp %{name}.1 ${RPM_BUILD_ROOT}/%{_mandir}/man1
+cp %{SOURCE0} ${RPM_BUILD_ROOT}/%{_bindir}
 
 %files
-%attr(0644,root,root) %doc %{_mandir}/man1/%{name}.1
-%attr(0755,root,root) %{_bindir}/${name}
+%attr(0644,root,root) %doc %{_mandir}/man1/%{name}.1.gz
+%attr(0755,root,root) %{_bindir}/check_ntp_when
 
 %changelog
 * Tue May 21 2013 Colin Panisset <nonspecialist@clabber.com> 0.1-1
