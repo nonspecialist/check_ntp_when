@@ -15,6 +15,7 @@ Source0:	check_ntp_when
 Source1:	README.md
 
 BuildRequires:	pandoc
+Requires:	ntp
 BuildArch:	noarch
 
 %description
