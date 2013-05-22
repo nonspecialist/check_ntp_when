@@ -1,6 +1,6 @@
-% check\_ntp\_when(1) | Version 0.1
+% check\_ntp\_when(1) | Version 0.2
 % Colin Panisset
-% May 21, 2013
+% May 22, 2013
 
 # NAME
 

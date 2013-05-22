@@ -8,7 +8,7 @@
 # root@monitor02.eqx ~ # ntpq -p esxi06
 #     remote           refid      st t when poll reach   delay   offset  jitter
 #     ==============================================================================
-#     *cns01.eqx.reale 10.69.0.200      4 u 189d 1024  377    0.174   -0.140   0.100
+#     *foo.bar.com     10.10.10.10      4 u 189d 1024  377    0.174   -0.140   0.100
 #
 # NOTE that some hosts can go up to 1024 seconds per poll when
 # they get really confident about their local ticker.
